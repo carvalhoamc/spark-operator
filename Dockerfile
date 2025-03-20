@@ -2,7 +2,7 @@
 # Copyright 2017 Google LLC
 #
 
-ARG SPARK_IMAGE=docker.io/apache/spark:3.5.3  # Certifique-se de que este é o Spark com Iceberg
+ARG SPARK_IMAGE=docker.io/apache/spark:3.5.3  # Certifique-se de que este Spark tem suporte ao Iceberg
 
 FROM golang:1.23.1 AS builder
 
@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=cache,target="/root/.cache/go-build" \
     CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on make build-operator
 
-FROM ${SPARK_IMAGE}  # 🔥 Agora está usando a imagem corrigida do Spark com Iceberg 🔥
+FROM ${SPARK_IMAGE}  # 🔥 Agora usa a imagem corrigida do Spark com Iceberg 🔥
 
 ARG SPARK_UID=185
 ARG SPARK_GID=185
@@ -39,6 +39,9 @@ RUN apt-get update \
 RUN mkdir -p /etc/k8s-webhook-server/serving-certs /home/spark && \
     chmod -R g+rw /etc/k8s-webhook-server/serving-certs && \
     chown -R spark /etc/k8s-webhook-server/serving-certs /home/spark
+
+# ✅ Garante que o diretório de configuração do Spark exista ✅
+RUN mkdir -p $SPARK_HOME/conf/
 
 # ✅ Adiciona suporte ao Iceberg para os pods do Spark ✅
 ADD https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/1.5.0/iceberg-spark-runtime-3.5_2.12-1.5.0.jar $SPARK_HOME/jars/
