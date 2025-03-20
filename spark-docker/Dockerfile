@@ -14,24 +14,29 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=spark:3.5.3
-FROM ${SPARK_IMAGE}
+FROM docker.io/apache/spark:3.5.3
 
 # Switch to user root so we can add additional jars and configuration files.
 USER root
 
-# Setup dependencies for Google Cloud Storage access.
-RUN rm $SPARK_HOME/jars/guava-14.0.1.jar
-ADD https://repo1.maven.org/maven2/com/google/guava/guava/23.0/guava-23.0.jar $SPARK_HOME/jars
-RUN chmod 644 $SPARK_HOME/jars/guava-23.0.jar
-# Add the connector jar needed to access Google Cloud Storage using the Hadoop FileSystem API.
-ADD https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-latest-hadoop2.jar $SPARK_HOME/jars
-RUN chmod 644 $SPARK_HOME/jars/gcs-connector-latest-hadoop2.jar
-ADD https://storage.googleapis.com/spark-lib/bigquery/spark-bigquery-latest_2.12.jar $SPARK_HOME/jars
-RUN chmod 644 $SPARK_HOME/jars/spark-bigquery-latest_2.12.jar
+# ✅ Remover dependências desnecessárias
+RUN rm -f $SPARK_HOME/jars/guava-14.0.1.jar
 
-# Setup for the Prometheus JMX exporter.
-# Add the Prometheus JMX exporter Java agent jar for exposing metrics sent to the JmxSink to Prometheus.
+# ✅ Adicionar dependências do Iceberg para Spark 3.5.3
+ADD https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/1.5.0/iceberg-spark-runtime-3.5_2.12-1.5.0.jar $SPARK_HOME/jars/
+RUN chmod 644 $SPARK_HOME/jars/iceberg-spark-runtime-3.5_2.12-1.5.0.jar
+
+# ✅ Adicionar suporte ao Iceberg REST Catalog (se necessário)
+ADD https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-rest-catalog/1.5.0/iceberg-rest-catalog-1.5.0.jar $SPARK_HOME/jars/
+RUN chmod 644 $SPARK_HOME/jars/iceberg-rest-catalog-1.5.0.jar
+
+# ✅ Configurar Iceberg no Spark
+RUN echo "spark.sql.catalog.iceberg=org.apache.iceberg.spark.SparkCatalog" >> $SPARK_HOME/conf/spark-defaults.conf
+RUN echo "spark.sql.catalog.iceberg.type=rest" >> $SPARK_HOME/conf/spark-defaults.conf
+RUN echo "spark.sql.catalog.iceberg.uri=http://iceberg-rest:8181" >> $SPARK_HOME/conf/spark-defaults.conf
+RUN echo "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions" >> $SPARK_HOME/conf/spark-defaults.conf
+
+# ✅ Setup para o Prometheus JMX Exporter.
 ADD https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.11.0/jmx_prometheus_javaagent-0.11.0.jar /prometheus/
 RUN chmod 644 /prometheus/jmx_prometheus_javaagent-0.11.0.jar
 
